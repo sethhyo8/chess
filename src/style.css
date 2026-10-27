@@ -3935,9 +3935,36 @@ button .resource-icon {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.app-shell:not(.playing) .workspace .board-column > .player-line,
-.app-shell:not(.playing) .workspace .board-column > .under-board {
+.workspace .board-column:has(.eval-bar) > .player-line,
+.workspace .board-column:has(.eval-bar) > .under-board {
   margin-left: 63px;
+}
+
+/* Keep player details aligned to the board, with room for both text lines. */
+.workspace .board-column:not(:has(.eval-bar)) > .player-line,
+.workspace .board-column:not(:has(.eval-bar)) > .under-board {
+  margin-left: 0;
+}
+.workspace .board-column > .player-line {
+  height: auto;
+  min-height: 48px;
+  gap: 11px;
+  align-items: center;
+  text-align: left;
+}
+.workspace .player-line > .avatar,
+.workspace .player-line > .you-avatar {
+  flex: 0 0 auto;
+}
+.workspace .player-line > div:not(.you-avatar) {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.workspace .player-line strong,
+.workspace .player-line small {
+  margin: 0;
+  line-height: 1.35;
 }
 .coach-settings {
   display: grid;
