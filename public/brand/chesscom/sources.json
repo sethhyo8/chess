@@ -1,0 +1,90 @@
+{
+  "sourcePage": "https://www.chess.com/article/view/chess-com-brand-resources",
+  "assets": [
+    {
+      "file": "brilliant.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpQcwe5E.png",
+      "description": "Brilliant move icon Chess.com"
+    },
+    {
+      "file": "great.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpmDwOPG.png",
+      "description": "Great find move icon Chess.com"
+    },
+    {
+      "file": "best.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpE0gpKi.png",
+      "description": "Best move icon Chess.com"
+    },
+    {
+      "file": "excellent.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/php12KLQL.png",
+      "description": "Excellent move icon Chess.com"
+    },
+    {
+      "file": "good.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpbFKLz5.png",
+      "description": "Good move icon Chess.com"
+    },
+    {
+      "file": "book.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpdFgJU0.png",
+      "description": "Book move icon Chess.com"
+    },
+    {
+      "file": "inaccuracy.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpStQeGp.png",
+      "description": "Inaccuracy move icon Chess.com"
+    },
+    {
+      "file": "mistake.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpJ6F97j.png",
+      "description": "Mistake move icon Chess.com"
+    },
+    {
+      "file": "blunder.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phprZy2C4.png",
+      "description": "Blunder move icon Chess.com"
+    },
+    {
+      "file": "miss.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phprSK0EW.png",
+      "description": "Miss move icon Chess.com"
+    },
+    {
+      "file": "pawn.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpHhI58s.png",
+      "description": "Pawn"
+    },
+    {
+      "file": "play.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpp7ALcK.png",
+      "description": "Play"
+    },
+    {
+      "file": "puzzles.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpIisUvK.png",
+      "description": "Puzzles"
+    },
+    {
+      "file": "learn.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpEW4iSk.png",
+      "description": "Learn"
+    },
+    {
+      "file": "watch.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpELb2PV.png",
+      "description": "Watch"
+    },
+    {
+      "file": "news.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpZEpVBf.png",
+      "description": "News"
+    },
+    {
+      "file": "social.png",
+      "source": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/Wind/phpLNxg1m.png",
+      "description": "Social"
+    }
+  ]
+}
