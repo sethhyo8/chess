@@ -4005,3 +4005,17 @@ button .resource-icon {
 [data-theme="light"] .eval-bar {
   border-color: var(--line);
 }
+
+/* Centre the single-line player identity before the first capture. */
+.workspace .player-line strong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace .player-line .rating {
+  margin-left: 0;
+}
+.workspace .player-line .captured-tray:empty {
+  display: none;
+}
