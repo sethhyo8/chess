@@ -4019,3 +4019,22 @@ button .resource-icon {
 .workspace .player-line .captured-tray:empty {
   display: none;
 }
+
+/* Use identical avatar boxes so names and captured pieces share an edge. */
+.workspace .player-line > .avatar,
+.workspace .player-line > .you-avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  box-sizing: border-box;
+  border-radius: 11px;
+}
+@media (max-width: 800px) {
+  .workspace .player-line > .avatar,
+  .workspace .player-line > .you-avatar {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    border-radius: 9px;
+  }
+}
