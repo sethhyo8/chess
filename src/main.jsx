@@ -241,7 +241,7 @@ function App() {
   const g = branch
       ? position(branch.start, branch.moves)
       : position(game.start, game.moves.slice(0, idx)),
-    isPlay = section === "play" && !setup && !!botSession,
+    isPlay = ["play", "coach"].includes(section) && !setup && !!botSession,
     atEnd = idx === game.moves.length && !branch;
   const full = () => makeGame(game.start, game.moves, game.headers);
   const notify = (t) => {
@@ -346,9 +346,11 @@ function App() {
     if (!boot) {
       setBoot(true);
       if (botSession) {
-        setSection("play");
+        setSection(botSession.workspace === "coach" ? "coach" : "play");
+        setTab(botSession.workspace === "coach" ? "coach" : "analysis");
         setIdx(game.moves.length);
         setPlayerColor(botSession.color);
+        setClockPreset(botSession.preset);
         setSelectedBot(bots.find((b) => b.id === botSession.botId) || bots[0]);
         setClocks(botSession.clocks || { w: 0, b: 0 });
         setCoachOn(!!botSession.coach);
@@ -475,7 +477,15 @@ function App() {
         if (!c.signal.aborted) setThinking(false);
       });
     return () => c.abort();
-  }, [game.moves.length, isPlay, atEnd, botSession?.ended]);
+  }, [
+    game.id,
+    game.moves.length,
+    isPlay,
+    atEnd,
+    botSession?.ended,
+    botSession?.color,
+    selectedBot.elo,
+  ]);
   useEffect(() => {
     if (!isPlay || botSession.ended || g.isGameOver() || !botSession.preset)
       return;
@@ -570,6 +580,7 @@ function App() {
     }
   }
   function startBot() {
+    const withCoach = section === "coach";
     invalidate();
     const color =
       playerColor === "random"
@@ -588,15 +599,17 @@ function App() {
       botId: selectedBot.id,
       color,
       preset: clockPreset,
-      coach: false,
+      coach: withCoach && coachEnabled,
+      workspace: withCoach ? "coach" : "play",
       ended: null,
     });
     setClocks({ w: clockPreset * 60000, b: clockPreset * 60000 });
     setFlipped(color === "b");
-    setSection("play");
+    setSection(withCoach ? "coach" : "play");
+    setTab(withCoach ? "coach" : "analysis");
     setSetup(false);
-    setAnalysisOn(false);
-    setCoachOn(false);
+    setAnalysisOn(withCoach);
+    setCoachOn(withCoach && coachEnabled);
     setError("");
   }
   function takeback() {
@@ -719,7 +732,7 @@ function App() {
       : end?.startsWith("Black")
         ? "0-1"
         : "1/2-1/2";
-    delete workspaces.current.play;
+    delete workspaces.current[section];
     setGame((x) => ({
       ...x,
       completed: true,
@@ -773,9 +786,35 @@ function App() {
     setResultOpen(false);
     if (s === "library" || s === "openings") return;
     const next = workspaces.current[s];
-    setGame(next?.game || makeGame());
+    const coachSession =
+      s === "coach" && !next?.botSession
+        ? {
+            botId: bots[0].id,
+            color: "w",
+            preset: 0,
+            coach: coachEnabled,
+            workspace: "coach",
+            ended: null,
+          }
+        : null;
+    setGame(
+      next?.game ||
+        (coachSession
+          ? makeGame(DEFAULT_POSITION, [], {
+              White: "You",
+              Black: bots[0].name,
+              Result: "*",
+            })
+          : makeGame()),
+    );
     setIdx(next?.idx || 0);
-    setBotSession(next?.botSession || null);
+    const session = next?.botSession || coachSession;
+    setBotSession(session);
+    if (session) {
+      setPlayerColor(session.color);
+      setClockPreset(session.preset);
+      setSelectedBot(bots.find((b) => b.id === session.botId) || bots[0]);
+    }
     setClocks(next?.clocks || { w: 0, b: 0 });
     setFlipped(next?.flipped || false);
     setAnalysisOn(next?.analysisOn ?? true);
@@ -783,6 +822,7 @@ function App() {
     setTab(next?.tab === "review" && s === "review" ? "review" : "analysis");
     if (s === "play") setSetup(!next?.botSession);
     else if (s === "coach") {
+      setSetup(false);
       setTab("coach");
     } else if (s === "screenshot") setModal({ type: "image" });
   }
@@ -802,7 +842,7 @@ function App() {
     <div
       className={
         "app-shell " +
-        (isPlay ? "playing " : "") +
+        (isPlay && section === "play" ? "playing " : "") +
         (sidebarCollapsed ? "sidebar-collapsed" : "")
       }
     >
@@ -909,17 +949,6 @@ function App() {
             </strong>
           </div>
           <div className="top-actions">
-            <Button
-              className="icon-button"
-              icon={theme === "dark" ? Sun : Moon}
-              aria-label="Toggle colour theme"
-              title={theme === "dark" ? "Light mode" : "Dark mode"}
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            />
-            <span className="engine-pill">
-              <span className={engine?.ready ? "online-dot" : "loading-dot"} />
-              {engine?.ready ? "Stockfish 17.1 Lite" : "Connecting engine"}
-            </span>
             <button
               className="icon-button"
               title="Settings"
@@ -1118,7 +1147,7 @@ function App() {
                       : "A FRESH PERSPECTIVE"}
                 </div>
                 <h1>
-                  {isPlay
+                  {isPlay && section !== "coach"
                     ? `You vs ${selectedBot.name}`
                     : section === "coach"
                       ? "Play With Coach"
@@ -1143,6 +1172,7 @@ function App() {
                   className="primary"
                   icon={Plus}
                   onClick={() => {
+                    if (section === "coach") return startBot();
                     invalidate();
                     setBotSession(null);
                     setSection("play");
@@ -1376,7 +1406,7 @@ function App() {
                   </div>
                 )}
               </section>
-              {isPlay ? (
+              {isPlay && section === "play" ? (
                 <BotPlayPanel
                   game={game}
                   idx={idx}
@@ -1912,6 +1942,7 @@ function App() {
                     invalidate();
                     setResultOpen(false);
                     setBotSession(null);
+                    setSection("play");
                     setSetup(true);
                   }}
                 >

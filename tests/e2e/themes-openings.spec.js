@@ -71,7 +71,7 @@ test("light mode persists, dark background is exact, and theme controls work dur
     "rgb(48, 46, 43)",
   );
   await page
-    .getByRole("button", { name: "Toggle colour theme", exact: true })
+    .getByRole("button", { name: "Switch to light mode", exact: true })
     .click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.reload();
