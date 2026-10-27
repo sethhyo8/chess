@@ -1205,18 +1205,8 @@ function App() {
                       {isPlay && (
                         <span className="rating">≈ {selectedBot.elo}</span>
                       )}
+                      {thinking && <span className="thinking">Thinking<span>•••</span></span>}
                     </strong>
-                    <small>
-                      {thinking ? (
-                        <span className="thinking">
-                          Thinking<span>•••</span>
-                        </span>
-                      ) : isPlay ? (
-                        "Your opponent · " + selectedBot.group
-                      ) : (
-                        "Black pieces"
-                      )}
-                    </small>
                     {isPlay && (
                       <Captured
                         game={game}
@@ -1289,14 +1279,6 @@ function App() {
                         {isPlay ? "YOU" : "WHITE"}
                       </span>
                     </strong>
-                    <small>
-                      {end ||
-                        (isPlay
-                          ? g.turn() === botSession.color
-                            ? "Your turn"
-                            : "Waiting for opponent"
-                          : "Ready to explore")}
-                    </small>
                     {isPlay && (
                       <Captured
                         game={game}
