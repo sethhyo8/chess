@@ -184,18 +184,16 @@ test("playing Black, coach attribution, progressive hints and settings", async (
   await page.getByRole("button", { name: "What is the threat?" }).click();
   await expect(page.locator(".bubble")).toContainText(/attacked/);
   await page
-    .locator(".topbar")
-    .getByRole("button", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Settings & about", exact: true })
     .click();
   await page
     .getByRole("combobox", { name: "Commentary detail" })
     .selectOption("detailed");
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
-  await page.getByRole("button", { name: "Why?", exact: true }).click();
-  await expect(page.locator(".bubble")).toContainText("Line:");
+  await page.getByRole("button", { name: "Hint", exact: true }).click();
+  await expect(page.locator(".arrow-layer")).toHaveCount(1);
   await page
-    .locator(".topbar")
-    .getByRole("button", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Settings & about", exact: true })
     .click();
   await page.getByLabel("Coach commentary").uncheck();
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
