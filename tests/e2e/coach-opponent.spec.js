@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { Chess } from "../../shared/chess.js";
+import { Chess, makeGame, DEFAULT_POSITION } from "../../shared/chess.js";
 
 // These tests isolate session/UI behavior from engine strength and speed.
 test.beforeEach(async ({ page }) => {
@@ -236,4 +236,86 @@ test("late assessments cannot add comments to a restarted Coach game", async ({
       ),
     )
     .toBe(0);
+});
+
+test("Coach waits for assessment and reading time before requesting its reply", async ({
+  page,
+}) => {
+  let release;
+  const assessment = new Promise((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route("**/api/analyse", async (route) => {
+    const { moves = [], depth } = route.request().postDataJSON();
+    if (depth === 9 && moves.length) await assessment;
+    await route
+      .fulfill({ json: { cp: 0, lines: [], depth: 9 } })
+      .catch(() => {});
+  });
+  await page.route("**/api/bot", (route) => {
+    requested = true;
+    return route.fulfill({ json: { move: "e5" } });
+  });
+  await page.locator("[data-square=e2]").click();
+  await page.locator("[data-square=e4]").click();
+  await page.waitForTimeout(300);
+  expect(requested).toBe(false);
+  release();
+  await expect(page.getByLabel("Coach conversation")).toContainText("centre");
+  const visibleAt = Date.now();
+  await page.waitForTimeout(1000);
+  expect(requested).toBe(false);
+  await expect.poll(() => requested).toBe(true);
+  expect(Date.now() - visibleAt).toBeGreaterThan(1500);
+  await expect(
+    page
+      .locator(".panel-tabs")
+      .getByRole("button", { name: "Review", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .locator(".footer-actions")
+      .getByRole("button", { name: "Review", exact: true }),
+  ).toBeVisible();
+});
+
+test("captured images leave a separate space for material advantage", async ({
+  page,
+}) => {
+  const saved = makeGame(DEFAULT_POSITION, [
+    "e4",
+    "d5",
+    "exd5",
+    "Nf6",
+    "Nc3",
+    "Nxd5",
+    "Nxd5",
+  ]);
+  await page.evaluate((game) => {
+    localStorage.setItem("grove-current", JSON.stringify(game));
+    localStorage.setItem(
+      "grove-bot",
+      JSON.stringify({
+        workspace: "coach",
+        coachId: "fundamentals",
+        color: "b",
+        preset: 0,
+        coach: true,
+        ended: null,
+      }),
+    );
+  }, saved);
+  await page.reload();
+  const trays = page.locator(".captured-tray:has(> strong)");
+  await expect(trays.first()).toBeVisible();
+  for (const tray of await trays.all()) {
+    const total = await tray.locator(":scope > strong").boundingBox();
+    for (const image of await tray.locator(".piece").all()) {
+      const box = await image.boundingBox();
+      expect(
+        box.x + box.width <= total.x || box.y + box.height <= total.y,
+      ).toBe(true);
+    }
+  }
 });
