@@ -248,6 +248,9 @@ function App() {
       ? coaches.find((c) => c.id === botSession?.coachId) || coach
       : selectedBot;
   const opponentStrength = opponent.engineElo || opponent.elo;
+  const latestCoachNote = game.coachNotes?.[game.moves.length - 1];
+  const waitingForCoachAssessment =
+    section === "coach" && isPlay && game.moves.length > 0 && !latestCoachNote;
   function requestHint() {
     if (!analysis || !coachOn) return;
     const h = Math.min(3, hint + 1);
@@ -486,37 +489,67 @@ function App() {
       g.turn() === botSession.color
     )
       return;
+    if (waitingForCoachAssessment) {
+      setThinking(true);
+      return;
+    }
     const token = gen.current,
       c = new AbortController();
     botAbort.current = c;
     setThinking(true);
-    api(
-      "bot",
-      { fen: game.start, moves: game.moves, elo: opponentStrength },
-      c.signal,
-    )
-      .then((r) => {
-        if (c.signal.aborted || token !== gen.current || botRef.current?.ended)
-          return;
-        const next = makeGame(
-          game.start,
-          [...game.moves, r.move],
-          game.headers,
-        );
-        next.id = game.id;
-        setGame((current) => ({
-          ...next,
-          coachNotes: current.id === next.id ? current.coachNotes : undefined,
-        }));
-        setIdx(next.moves.length);
-      })
-      .catch((e) => {
-        if (e.name !== "AbortError") setError(e.message);
-      })
-      .finally(() => {
-        if (!c.signal.aborted) setThinking(false);
-      });
-    return () => c.abort();
+    const requestReply = () =>
+      api(
+        "bot",
+        { fen: game.start, moves: game.moves, elo: opponentStrength },
+        c.signal,
+      )
+        .then((r) => {
+          if (
+            c.signal.aborted ||
+            token !== gen.current ||
+            botRef.current?.ended
+          )
+            return;
+          const next = makeGame(
+            game.start,
+            [...game.moves, r.move],
+            game.headers,
+          );
+          next.id = game.id;
+          setGame((current) => ({
+            ...next,
+            coachNotes: current.id === next.id ? current.coachNotes : undefined,
+          }));
+          setIdx(next.moves.length);
+        })
+        .catch((e) => {
+          if (e.name !== "AbortError") setError(e.message);
+        })
+        .finally(() => {
+          if (!c.signal.aborted) setThinking(false);
+        });
+    // Let the player see their assessment and read the comment before replying.
+    const readingTime = coachEnabled
+      ? Math.min(
+          4000,
+          Math.max(2200, (latestCoachNote?.message?.length || 0) * 25),
+        )
+      : 500;
+    const delay =
+      section === "coach" && latestCoachNote
+        ? Math.max(
+            0,
+            (latestCoachNote.commentedAt || Date.now()) +
+              readingTime -
+              Date.now(),
+          )
+        : 0;
+    const replyTimer = delay ? setTimeout(requestReply, delay) : null;
+    if (!delay) requestReply();
+    return () => {
+      clearTimeout(replyTimer);
+      c.abort();
+    };
   }, [
     game.id,
     game.moves.length,
@@ -525,6 +558,10 @@ function App() {
     botSession?.ended,
     botSession?.color,
     opponentStrength,
+    waitingForCoachAssessment,
+    latestCoachNote,
+    section,
+    coachEnabled,
   ]);
   useEffect(() => {
     if (!isPlay || botSession.ended || g.isGameOver() || !botSession.preset)
@@ -576,6 +613,7 @@ function App() {
         const quality = moveQuality(a.cp, b.cp, played.color);
         const note = {
           ...quality,
+          commentedAt: Date.now(),
           san: played.san,
           from: played.from,
           to: played.to,
@@ -605,6 +643,7 @@ function App() {
       (!atEnd ||
         g.turn() !== botSession.color ||
         thinking ||
+        waitingForCoachAssessment ||
         botSession.ended ||
         busy)
     )
@@ -706,6 +745,13 @@ function App() {
     setBotSession((s) => ({ ...s, ended: null }));
   }
   async function review() {
+    if (section === "coach") {
+      rememberWorkspace();
+      setSection("review");
+      setBotSession(null);
+      setCoachOn(false);
+      setAnalysisOn(true);
+    }
     invalidate();
     const c = new AbortController();
     reviewAbort.current = c;
@@ -1353,6 +1399,7 @@ function App() {
                       isPlay &&
                       (!atEnd ||
                         thinking ||
+                        waitingForCoachAssessment ||
                         g.turn() !== botSession.color ||
                         !!end ||
                         !!busy)
@@ -1531,13 +1578,15 @@ function App() {
                       <Search size={19} />
                       Analysis
                     </button>
-                    <button
-                      className={tab === "review" ? "selected-tab" : ""}
-                      onClick={() => setTab("review")}
-                    >
-                      <Star size={18} />
-                      Review
-                    </button>
+                    {section !== "coach" && (
+                      <button
+                        className={tab === "review" ? "selected-tab" : ""}
+                        onClick={() => setTab("review")}
+                      >
+                        <Star size={18} />
+                        Review
+                      </button>
+                    )}
                     {section === "coach" && (
                       <button
                         className={tab === "coach" ? "selected-tab" : ""}
