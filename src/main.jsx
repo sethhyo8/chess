@@ -243,6 +243,38 @@ function App() {
       : position(game.start, game.moves.slice(0, idx)),
     isPlay = ["play", "coach"].includes(section) && !setup && !!botSession,
     atEnd = idx === game.moves.length && !branch;
+  const opponent =
+    section === "coach"
+      ? coaches.find((c) => c.id === botSession?.coachId) || coach
+      : selectedBot;
+  const opponentStrength = opponent.engineElo || opponent.elo;
+  function requestHint() {
+    if (!analysis || !coachOn) return;
+    const h = Math.min(3, hint + 1);
+    setHint(h);
+    setQuestion(h === 3 ? "idea" : "hint" + h);
+    if (h === 3) setShowArrow(true);
+  }
+  useEffect(() => {
+    if (section !== "coach" || !botSession || botSession.coachId) return;
+    // Upgrade older Coach saves that still pointed to an ordinary bot.
+    setBotSession((session) => ({
+      ...session,
+      botId: undefined,
+      coachId: coach.id,
+    }));
+    setGame((current) => {
+      const headers = {
+        ...current.headers,
+        [botSession.color === "w" ? "Black" : "White"]: coach.name,
+      };
+      return {
+        ...current,
+        headers,
+        title: `${headers.White} vs ${headers.Black}`,
+      };
+    });
+  }, [section, botSession?.coachId, botSession?.color, coach.id]);
   const full = () => makeGame(game.start, game.moves, game.headers);
   const notify = (t) => {
     setToast(t);
@@ -352,6 +384,9 @@ function App() {
         setPlayerColor(botSession.color);
         setClockPreset(botSession.preset);
         setSelectedBot(bots.find((b) => b.id === botSession.botId) || bots[0]);
+        if (botSession.workspace === "coach") {
+          setCoach(coaches.find((c) => c.id === botSession.coachId) || coach);
+        }
         setClocks(botSession.clocks || { w: 0, b: 0 });
         setCoachOn(!!botSession.coach);
         setFlipped(botSession.color === "b");
@@ -455,7 +490,7 @@ function App() {
     setThinking(true);
     api(
       "bot",
-      { fen: game.start, moves: game.moves, elo: selectedBot.elo },
+      { fen: game.start, moves: game.moves, elo: opponentStrength },
       c.signal,
     )
       .then((r) => {
@@ -484,7 +519,7 @@ function App() {
     atEnd,
     botSession?.ended,
     botSession?.color,
-    selectedBot.elo,
+    opponentStrength,
   ]);
   useEffect(() => {
     if (!isPlay || botSession.ended || g.isGameOver() || !botSession.preset)
@@ -579,8 +614,9 @@ function App() {
       setBusy("");
     }
   }
-  function startBot() {
+  function startBot(nextCoach = coach) {
     const withCoach = section === "coach";
+    const rival = withCoach ? nextCoach : selectedBot;
     invalidate();
     const color =
       playerColor === "random"
@@ -589,14 +625,15 @@ function App() {
           : "b"
         : playerColor;
     const next = makeGame(DEFAULT_POSITION, [], {
-      White: color === "w" ? "You" : selectedBot.name,
-      Black: color === "b" ? "You" : selectedBot.name,
+      White: color === "w" ? "You" : rival.name,
+      Black: color === "b" ? "You" : rival.name,
       Result: "*",
     });
     setGame(next);
     setIdx(0);
     setBotSession({
-      botId: selectedBot.id,
+      botId: withCoach ? undefined : selectedBot.id,
+      coachId: withCoach ? rival.id : undefined,
       color,
       preset: clockPreset,
       coach: withCoach && coachEnabled,
@@ -789,7 +826,7 @@ function App() {
     const coachSession =
       s === "coach" && !next?.botSession
         ? {
-            botId: bots[0].id,
+            coachId: coach.id,
             color: "w",
             preset: 0,
             coach: coachEnabled,
@@ -802,7 +839,7 @@ function App() {
         (coachSession
           ? makeGame(DEFAULT_POSITION, [], {
               White: "You",
-              Black: bots[0].name,
+              Black: coach.name,
               Result: "*",
             })
           : makeGame()),
@@ -814,6 +851,9 @@ function App() {
       setPlayerColor(session.color);
       setClockPreset(session.preset);
       setSelectedBot(bots.find((b) => b.id === session.botId) || bots[0]);
+      if (session.workspace === "coach") {
+        setCoach(coaches.find((c) => c.id === session.coachId) || coach);
+      }
     }
     setClocks(next?.clocks || { w: 0, b: 0 });
     setFlipped(next?.flipped || false);
@@ -1041,10 +1081,24 @@ function App() {
                     {x.bot && !x.bot.ended && (
                       <button
                         onClick={() => {
-                          load(x, "play", x.moves.length);
+                          load(
+                            x,
+                            x.bot.workspace === "coach" ? "coach" : "play",
+                            x.moves.length,
+                          );
+                          setCoachOn(
+                            x.bot.workspace === "coach" && coachEnabled,
+                          );
+                          if (x.bot.workspace === "coach") {
+                            setCoach(
+                              coaches.find((c) => c.id === x.bot.coachId) ||
+                                coaches[0],
+                            );
+                            setTab("coach");
+                          }
                           setBotSession(x.bot);
                           setSelectedBot(
-                            bots.find((b) => b.id === x.bot.botId),
+                            bots.find((b) => b.id === x.bot.botId) || bots[0],
                           );
                           setClocks(x.clocks);
                           setFlipped(x.bot.color === "b");
@@ -1126,7 +1180,7 @@ function App() {
               <Button
                 className="primary large"
                 icon={Swords}
-                onClick={startBot}
+                onClick={() => startBot()}
               >
                 Play {selectedBot.name}
               </Button>
@@ -1189,7 +1243,7 @@ function App() {
                   <Avatar
                     item={
                       isPlay
-                        ? selectedBot
+                        ? opponent
                         : {
                             name: game.headers.Black || "Black",
                             kind: "fox",
@@ -1199,13 +1253,15 @@ function App() {
                   />
                   <div>
                     <strong>
-                      {isPlay
-                        ? selectedBot.name
-                        : game.headers.Black || "Black"}{" "}
-                      {isPlay && (
+                      {isPlay ? opponent.name : game.headers.Black || "Black"}{" "}
+                      {isPlay && section !== "coach" && (
                         <span className="rating">≈ {selectedBot.elo}</span>
                       )}
-                      {thinking && <span className="thinking">Thinking<span>•••</span></span>}
+                      {thinking && (
+                        <span className="thinking">
+                          Thinking<span>•••</span>
+                        </span>
+                      )}
                     </strong>
                     {isPlay && (
                       <Captured
@@ -1335,7 +1391,7 @@ function App() {
                     </button>
                   </div>
                 )}
-                {isPlay && (
+                {isPlay && section !== "coach" && (
                   <div className="play-controls">
                     {end ? (
                       <>
@@ -1458,7 +1514,19 @@ function App() {
                               key={c.id}
                               className={coach.id === c.id ? "chosen" : ""}
                               onClick={() => {
+                                if (c.id === coach.id) return;
+                                if (
+                                  game.moves.length &&
+                                  !window.confirm(
+                                    "Start a new practice game with " +
+                                      c.name +
+                                      "? The current game will be saved to your library.",
+                                  )
+                                )
+                                  return;
+                                if (game.moves.length) save();
                                 setCoach(c);
+                                startBot(c);
                                 setHint(0);
                                 setQuestion(null);
                               }}
@@ -1492,18 +1560,6 @@ function App() {
                         </div>
                       )}
                       <div className="coach-questions">
-                        <Button
-                          icon={Lightbulb}
-                          disabled={!coachOn || !analysis}
-                          onClick={() => {
-                            const h = Math.min(3, hint + 1);
-                            setHint(h);
-                            setQuestion(h === 3 ? "idea" : "hint" + h);
-                            if (h === 3) setShowArrow(true);
-                          }}
-                        >
-                          Hint {hint ? `${hint}/3` : ""}
-                        </Button>
                         <button
                           disabled={!coachOn || !analysis}
                           onClick={() => {
@@ -1778,69 +1834,107 @@ function App() {
                     </>
                   )}
                   <div className="panel-footer">
-                    <div className="navigation">
-                      <button
-                        aria-label="First move"
-                        onClick={() => {
-                          setIdx(0);
-                          setBranch(null);
-                          setAuto(false);
-                        }}
+                    {section === "coach" ? (
+                      <div
+                        className="coach-game-actions"
+                        role="group"
+                        aria-label="Coach game controls"
                       >
-                        <ChevronsLeft />
-                      </button>
-                      <button
-                        aria-label="Previous move"
-                        onClick={() => {
-                          setIdx((i) => Math.max(0, i - 1));
-                          setBranch(null);
-                          setAuto(false);
-                        }}
-                      >
-                        <ChevronLeft />
-                      </button>
-                      <button
-                        aria-label={auto ? "Pause replay" : "Autoplay"}
-                        onClick={() => {
-                          if (idx === game.moves.length) setIdx(0);
-                          setAuto((a) => !a);
-                        }}
-                      >
-                        {auto ? <Pause size={19} /> : <Play size={19} />}
-                      </button>
-                      <button
-                        aria-label="Next move"
-                        onClick={() => {
-                          setIdx((i) => Math.min(game.moves.length, i + 1));
-                          setBranch(null);
-                          setAuto(false);
-                        }}
-                      >
-                        <ChevronRight />
-                      </button>
-                      <button
-                        aria-label="Last move"
-                        onClick={() => {
-                          setIdx(game.moves.length);
-                          setBranch(null);
-                          setAuto(false);
-                        }}
-                      >
-                        <ChevronsRight />
-                      </button>
-                    </div>
-                    <div className="replay-speed">
-                      <span>Replay speed</span>
-                      <select
-                        aria-label="Replay speed"
-                        value={speed}
-                        onChange={(e) => setSpeed(+e.target.value)}
-                      >
-                        <option value={2000}>0.5×</option>
-                        <option value={1000}>1×</option>
-                        <option value={500}>2×</option>
-                      </select>
-                    </div>
+                        <button
+                          aria-label="Resign"
+                          title="Resign"
+                          disabled={!isPlay || !!end}
+                          onClick={() => setModal({ type: "resign" })}
+                        >
+                          <Flag />
+                        </button>
+                        <button
+                          aria-label="Practice takeback"
+                          title="Practice takeback"
+                          disabled={!isPlay || !game.moves.length || !!end}
+                          onClick={takeback}
+                        >
+                          <Undo2 />
+                        </button>
+                        <button
+                          aria-label="Hint"
+                          title="Hint"
+                          aria-pressed={hint > 0}
+                          disabled={
+                            !coachOn || !analysis || !!end || !atEnd || thinking
+                          }
+                          onClick={requestHint}
+                        >
+                          <Lightbulb />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="navigation">
+                          <button
+                            aria-label="First move"
+                            onClick={() => {
+                              setIdx(0);
+                              setBranch(null);
+                              setAuto(false);
+                            }}
+                          >
+                            <ChevronsLeft />
+                          </button>
+                          <button
+                            aria-label="Previous move"
+                            onClick={() => {
+                              setIdx((i) => Math.max(0, i - 1));
+                              setBranch(null);
+                              setAuto(false);
+                            }}
+                          >
+                            <ChevronLeft />
+                          </button>
+                          <button
+                            aria-label={auto ? "Pause replay" : "Autoplay"}
+                            onClick={() => {
+                              if (idx === game.moves.length) setIdx(0);
+                              setAuto((a) => !a);
+                            }}
+                          >
+                            {auto ? <Pause size={19} /> : <Play size={19} />}
+                          </button>
+                          <button
+                            aria-label="Next move"
+                            onClick={() => {
+                              setIdx((i) => Math.min(game.moves.length, i + 1));
+                              setBranch(null);
+                              setAuto(false);
+                            }}
+                          >
+                            <ChevronRight />
+                          </button>
+                          <button
+                            aria-label="Last move"
+                            onClick={() => {
+                              setIdx(game.moves.length);
+                              setBranch(null);
+                              setAuto(false);
+                            }}
+                          >
+                            <ChevronsRight />
+                          </button>
+                        </div>
+                        <div className="replay-speed">
+                          <span>Replay speed</span>
+                          <select
+                            aria-label="Replay speed"
+                            value={speed}
+                            onChange={(e) => setSpeed(+e.target.value)}
+                          >
+                            <option value={2000}>0.5×</option>
+                            <option value={1000}>1×</option>
+                            <option value={500}>2×</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
                     <div className="footer-actions">
                       <Button icon={Save} onClick={save}>
                         Save
@@ -1905,7 +1999,7 @@ function App() {
                 <span>
                   {game.headers.Result === "*" ? "vs" : game.headers.Result}
                 </span>
-                <Avatar item={selectedBot} size={64} />
+                <Avatar item={opponent} size={64} />
               </div>
               <p>
                 {game.moves.length} half-moves played. Explore the turning
@@ -1924,11 +2018,14 @@ function App() {
                     invalidate();
                     setResultOpen(false);
                     setBotSession(null);
-                    setSection("play");
-                    setSetup(true);
+                    if (section === "coach") startBot();
+                    else {
+                      setSection("play");
+                      setSetup(true);
+                    }
                   }}
                 >
-                  New Bot
+                  {section === "coach" ? "New coach game" : "New Bot"}
                 </button>
                 <button
                   onClick={() => {
