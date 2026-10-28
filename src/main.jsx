@@ -255,7 +255,7 @@ function App() {
     if (!analysis || !coachOn) return;
     const h = Math.min(3, hint + 1);
     setHint(h);
-    setQuestion(h === 3 ? "idea" : "hint" + h);
+    setQuestion("hint" + h);
     if (h === 3) setShowArrow(true);
   }
   useEffect(() => {
@@ -1064,7 +1064,7 @@ function App() {
         </div>
       </aside>
       <main>
-        <header className="topbar">
+        <header className={"topbar" + (section === "coach" ? " coach-topbar" : "")}>
           <div>
             <span className="breadcrumb">
               Workspace <ChevronRight size={13} />
@@ -1569,7 +1569,7 @@ function App() {
                   onOpenings={() => go("openings")}
                 />
               ) : (
-                <aside className="analysis-panel">
+                <aside className={"analysis-panel" + (section === "coach" ? " coach-fixed-panel" : "")}>
                   <div className="panel-tabs">
                     <button
                       className={tab === "analysis" ? "selected-tab" : ""}
@@ -1682,15 +1682,6 @@ function App() {
                         </button>
                       )}
                       <div className="coach-questions">
-                        <button
-                          disabled={!coachOn || !analysis}
-                          onClick={() => {
-                            setQuestion("why");
-                            setShowArrow(true);
-                          }}
-                        >
-                          Why?
-                        </button>
                         <button
                           disabled={!coachOn || !analysis}
                           onClick={() => setQuestion("threat")}
