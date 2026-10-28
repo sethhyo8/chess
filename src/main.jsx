@@ -41,6 +41,7 @@ import {
   BookOpen,
   Star,
 } from "./Icons.jsx";
+import { coachMoveComment } from "../shared/coach.js";
 import Board, { Piece } from "./Board.jsx";
 import OpeningExplorer from "./OpeningExplorer.jsx";
 import { loadOpeningDatabase } from "./openings.js";
@@ -218,7 +219,6 @@ function App() {
     [showArrow, setShowArrow] = useState(false),
     [hint, setHint] = useState(0),
     [question, setQuestion] = useState(null),
-    [feedback, setFeedback] = useState(null),
     [coach, setCoach] = useState(() => read("grove-coach", coaches[0])),
     [coachOn, setCoachOn] = useState(false),
     [coachEnabled, setCoachEnabled] = useState(() =>
@@ -292,13 +292,15 @@ function App() {
     setBranch(null);
     setHint(0);
     setQuestion(null);
-    setFeedback(null);
     setShowArrow(false);
   }
   function load(next, nextSection = "review", index = 0) {
     rememberWorkspace();
     invalidate();
-    setGame(next);
+    setGame((current) => ({
+      ...next,
+      coachNotes: current.id === next.id ? current.coachNotes : undefined,
+    }));
     setIdx(index);
     setSection(nextSection);
     setSetup(false);
@@ -502,7 +504,10 @@ function App() {
           game.headers,
         );
         next.id = game.id;
-        setGame(next);
+        setGame((current) => ({
+          ...next,
+          coachNotes: current.id === next.id ? current.coachNotes : undefined,
+        }));
         setIdx(next.moves.length);
       })
       .catch((e) => {
@@ -543,6 +548,57 @@ function App() {
     }, 100);
     return () => clearInterval(t);
   }, [isPlay, game.moves.length, botSession?.ended]);
+  useEffect(() => {
+    if (section !== "coach" || !botSession || !game.moves.length) return;
+    const controller = new AbortController();
+    const token = gen.current;
+    const gameId = game.id;
+    async function assessMoves() {
+      for (let i = 0; i < game.moves.length; i++) {
+        if (game.coachNotes?.[i]?.san === game.moves[i]) continue;
+        const prefix = game.moves.slice(0, i + 1);
+        const before = position(game.start, prefix.slice(0, -1));
+        const played = before.move(game.moves[i]);
+        const beforeFen = game.fens[i];
+        const [a, b] = await Promise.all([
+          api(
+            "analyse",
+            { fen: game.start, moves: prefix.slice(0, -1), depth: 9 },
+            controller.signal,
+          ),
+          api(
+            "analyse",
+            { fen: game.start, moves: prefix, depth: 9 },
+            controller.signal,
+          ),
+        ]);
+        if (controller.signal.aborted || token !== gen.current) return;
+        const quality = moveQuality(a.cp, b.cp, played.color);
+        const note = {
+          ...quality,
+          san: played.san,
+          from: played.from,
+          to: played.to,
+          message: coachMoveComment(beforeFen, played.san, quality, {
+            human: played.color === botSession.color,
+            focus: coach.id,
+            alternative: a.lines?.[0]?.pv?.[0],
+          }),
+        };
+        setGame((current) =>
+          current.id === gameId &&
+          current.moves.slice(0, i + 1).join(" ") === prefix.join(" ")
+            ? { ...current, coachNotes: { ...current.coachNotes, [i]: note } }
+            : current,
+        );
+      }
+    }
+    assessMoves().catch((e) => {
+      if (!controller.signal.aborted && token === gen.current)
+        setError("I couldn't assess that move yet. " + e.message);
+    });
+    return () => controller.abort();
+  }, [section, game.id, game.moves.length, coach.id, botSession?.color]);
   async function move(m, force = false) {
     if (
       isPlay &&
@@ -574,32 +630,11 @@ function App() {
           game.headers,
         );
         next.id = game.id;
-        setGame(next);
+        setGame((current) => ({
+          ...next,
+          coachNotes: current.id === next.id ? current.coachNotes : undefined,
+        }));
         setIdx(next.moves.length);
-        if (coachOn && detail !== "minimal") {
-          const beforeFen = currentFen;
-          Promise.all([
-            api("analyse", { fen: beforeFen, depth: 9 }),
-            api("analyse", { fen: test.fen(), depth: 9 }),
-          ])
-            .then(([a, b]) => {
-              if (token !== gen.current) return;
-              const q = moveQuality(a.cp, b.cp, played.color);
-              const fact = played.san.includes("#")
-                ? " That is checkmate."
-                : played.san.includes("+")
-                  ? " Your move gives check."
-                  : played.captured
-                    ? " Your move captures a piece."
-                    : ["d4", "d5", "e4", "e5"].includes(played.to)
-                      ? " Your piece occupies a central square."
-                      : "";
-              setFeedback(
-                `${played.san}: ${q.label.toLowerCase()} at depth 9.${fact}${q.loss >= 150 ? " The engine sees a loss of about " + (q.loss / 100).toFixed(1) + " pawns. Use Why to compare the continuation, or take back and try again." : ""}`,
-              );
-            })
-            .catch(() => {});
-        }
       } else {
         setAuto(false);
         setBranch((b) =>
@@ -629,7 +664,10 @@ function App() {
       Black: color === "b" ? "You" : rival.name,
       Result: "*",
     });
-    setGame(next);
+    setGame((current) => ({
+      ...next,
+      coachNotes: current.id === next.id ? current.coachNotes : undefined,
+    }));
     setIdx(0);
     setBotSession({
       botId: withCoach ? undefined : selectedBot.id,
@@ -658,6 +696,11 @@ function App() {
       game.headers,
     );
     next.id = game.id;
+    next.coachNotes = Object.fromEntries(
+      Object.entries(game.coachNotes || {}).filter(
+        ([i]) => Number(i) < next.moves.length,
+      ),
+    );
     setGame(next);
     setIdx(next.moves.length);
     setBotSession((s) => ({ ...s, ended: null }));
@@ -783,21 +826,19 @@ function App() {
     setTab("review");
   }
   const coachMessage =
-    !question && !hint && feedback
-      ? feedback
-      : question === "custom"
-        ? null
-        : coachText(
-            currentFen,
-            analysis,
-            coach.id,
-            question || (hint ? "hint" + hint : "hint1"),
-            detail === "minimal"
-              ? "minimal"
-              : level === "advanced"
-                ? "detailed"
-                : detail,
-          );
+    question === "custom"
+      ? null
+      : coachText(
+          currentFen,
+          analysis,
+          coach.id,
+          question || (hint ? "hint" + hint : "hint1"),
+          detail === "minimal"
+            ? "minimal"
+            : level === "advanced"
+              ? "detailed"
+              : detail,
+        );
   function rememberWorkspace() {
     if (["library", "screenshot", "openings"].includes(section)) return;
     if (game.completed || end) {
@@ -1317,6 +1358,13 @@ function App() {
                         !!busy)
                     }
                     last={last}
+                    moveBadge={
+                      section === "coach" &&
+                      !branch &&
+                      game.coachNotes?.[idx - 1] ? (
+                        <QualityBadge label={game.coachNotes[idx - 1].label} />
+                      ) : null
+                    }
                     arrow={
                       showArrow || game.source === "Screenshot"
                         ? analysis?.lines?.[0]?.pv[0]
@@ -1505,59 +1553,84 @@ function App() {
                   </div>
                   {tab === "coach" ? (
                     <>
-                      <div className="coach-header">
-                        <div className="eyebrow">IN YOUR CORNER</div>
-                        <h2>Meet your coach.</h2>
-                        <div className="coach-picker">
-                          {coaches.map((c) => (
-                            <button
-                              key={c.id}
-                              className={coach.id === c.id ? "chosen" : ""}
-                              onClick={() => {
-                                if (c.id === coach.id) return;
-                                if (
-                                  game.moves.length &&
-                                  !window.confirm(
-                                    "Start a new practice game with " +
-                                      c.name +
-                                      "? The current game will be saved to your library.",
-                                  )
-                                )
-                                  return;
-                                if (game.moves.length) save();
-                                setCoach(c);
-                                startBot(c);
-                                setHint(0);
-                                setQuestion(null);
-                              }}
-                            >
-                              <Avatar item={c} size={54} />
-                              <strong>{c.name}</strong>
-                              <small>{c.desc}</small>
-                            </button>
-                          ))}
-                        </div>
-                        <p className="muted">{coach.detail}</p>
-                      </div>
                       {coachOn && (
-                        <div className="coach-bubbles">
-                          <Avatar item={coach} size={48} />
-                          <div className="bubble">
-                            <strong>
-                              {coach.name} <span>YOUR COACH</span>
-                            </strong>
-                            <p>
-                              {analysis
-                                ? coachMessage
-                                : "Let’s take a look. I’m checking the position with Stockfish…"}
-                            </p>
-                            {hint === 3 && (
-                              <small>
-                                The arrow shows the recommended move.
-                              </small>
+                        <div
+                          className="coach-conversation"
+                          aria-live="polite"
+                          aria-label="Coach conversation"
+                        >
+                          {(question || hint
+                            ? [{ message: coachMessage }]
+                            : Object.entries(game.coachNotes || {})
+                                .filter(([i]) => Number(i) < idx)
+                                .slice(-2)
+                                .map(([, note]) => note)
+                          ).map((note, i) => (
+                            <div
+                              className="coach-bubbles"
+                              key={
+                                note.san ? `${idx}-${i}-${note.san}` : "answer"
+                              }
+                            >
+                              <Avatar item={coach} size={48} />
+                              <div className="bubble">
+                                <strong>
+                                  {coach.name} <span>YOUR COACH</span>
+                                </strong>
+                                <p>{note.message}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {!question &&
+                            !hint &&
+                            !Object.keys(game.coachNotes || {}).length && (
+                              <div className="coach-bubbles">
+                                <Avatar item={coach} size={48} />
+                                <div className="bubble">
+                                  <strong>
+                                    {coach.name} <span>YOUR COACH</span>
+                                  </strong>
+                                  <p>
+                                    {game.moves.length
+                                      ? "Let me take a look at that move…"
+                                      : "Ready? Let's play a game together. I'll talk through our moves as we go."}
+                                  </p>
+                                </div>
+                              </div>
                             )}
-                          </div>
                         </div>
+                      )}
+                      <div className="coach-move-list" aria-label="Coach moves">
+                        {game.moves.map((san, i) => (
+                          <button
+                            key={i}
+                            aria-label={`Move ${i + 1}: ${san}`}
+                            aria-current={idx === i + 1 ? "step" : undefined}
+                            onClick={() => {
+                              setIdx(i + 1);
+                              setBranch(null);
+                            }}
+                          >
+                            <span>
+                              {Math.floor(i / 2) + 1}
+                              {i % 2 ? "…" : "."} {san}
+                            </span>
+                            {game.coachNotes?.[i] && (
+                              <QualityBadge label={game.coachNotes[i].label} />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {!atEnd && (
+                        <button
+                          className="coach-live"
+                          onClick={() => {
+                            setIdx(game.moves.length);
+                            setBranch(null);
+                          }}
+                        >
+                          Return to live game
+                        </button>
                       )}
                       <div className="coach-questions">
                         <button
@@ -2067,6 +2140,23 @@ function App() {
           setDetail={setDetail}
           warning={warning}
           setWarning={setWarning}
+          coach={coach}
+          onCoachChange={(c) => {
+            if (c.id === coach.id) return;
+            if (
+              section === "coach" &&
+              game.moves.length &&
+              !window.confirm(
+                "Start a new practice game with " +
+                  c.name +
+                  "? Your current game will be saved to the library.",
+              )
+            )
+              return;
+            if (section === "coach" && game.moves.length) save();
+            setCoach(c);
+            if (section === "coach") startBot(c);
+          }}
           coachEnabled={coachEnabled}
           onCommentaryChange={(enabled) => {
             setCoachEnabled(enabled);
@@ -2476,6 +2566,8 @@ function Modal({
   setDetail,
   warning,
   setWarning,
+  coach,
+  onCoachChange,
   coachEnabled,
   onCommentaryChange,
   engine,
@@ -2708,6 +2800,23 @@ function Modal({
             </p>
             <h3>Coach preferences</h3>
             <div className="coach-settings">
+              <label htmlFor="coach-type">Coach type</label>
+              <select
+                id="coach-type"
+                value={coach.id}
+                onChange={(event) =>
+                  onCoachChange(
+                    coaches.find((c) => c.id === event.target.value),
+                  )
+                }
+              >
+                {coaches.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.desc}
+                  </option>
+                ))}
+              </select>
+              <p>{coach.detail}</p>
               <label className="check-label">
                 <input
                   type="checkbox"
