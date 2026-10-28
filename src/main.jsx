@@ -1064,35 +1064,6 @@ function App() {
         </div>
       </aside>
       <main>
-        <header className={"topbar" + (section === "coach" ? " coach-topbar" : "")}>
-          <div>
-            <span className="breadcrumb">
-              Workspace <ChevronRight size={13} />
-            </span>
-            <strong>
-              {section === "library"
-                ? "My library"
-                : navs.find((n) => n[0] === section)?.[1]}
-            </strong>
-          </div>
-          <div className="top-actions">
-            <button
-              className="icon-button"
-              title="Settings"
-              aria-label="Settings"
-              onClick={() => setModal({ type: "settings" })}
-            >
-              <Settings size={19} />
-            </button>
-            <button
-              className="profile-icon small"
-              aria-label="Open saved games"
-              onClick={() => go("library")}
-            >
-              Y
-            </button>
-          </div>
-        </header>
         {error && (
           <div className="error-banner" role="alert">
             {error}
@@ -1210,67 +1181,78 @@ function App() {
             </div>
           </div>
         ) : section === "play" && setup ? (
-          <div className="selection-page">
+          <div className="selection-page bot-selection">
             <div className="eyebrow">A FRIENDLY CHALLENGE</div>
             <h1>Choose an opponent</h1>
             <p className="muted">
               Pick a bot, choose your pieces, and play at your pace.
             </p>
-            <div className="bot-grid">
-              {bots.map((b) => (
-                <button
-                  key={b.id}
-                  aria-pressed={selectedBot.id === b.id}
-                  className={
-                    "bot-card " + (selectedBot.id === b.id ? "chosen" : "")
-                  }
-                  onClick={() => setSelectedBot(b)}
-                >
-                  <Avatar item={b} size={88} />
-                  <span className="bot-range">{b.group}</span>
-                  <h3>
-                    {b.name} <span>≈ {b.elo}</span>
-                  </h3>
-                  <p>{b.desc}</p>
-                  {selectedBot.id === b.id && (
-                    <Check className="chosen-check" size={20} />
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="play-setup">
-              <div>
-                <label htmlFor="player-color">Your pieces</label>
-                <select
-                  id="player-color"
-                  value={playerColor}
-                  onChange={(e) => setPlayerColor(e.target.value)}
-                >
-                  <option value="w">White</option>
-                  <option value="b">Black</option>
-                  <option value="random">Random</option>
-                </select>
+            <div className="bot-setup-layout">
+              <div className="bot-grid">
+                {bots.map((b) => (
+                  <button
+                    key={b.id}
+                    aria-pressed={selectedBot.id === b.id}
+                    className={
+                      "bot-card " + (selectedBot.id === b.id ? "chosen" : "")
+                    }
+                    onClick={() => setSelectedBot(b)}
+                  >
+                    <Avatar item={b} size={88} />
+                    <span className="bot-range">{b.group}</span>
+                    <h3>
+                      {b.name} <span>≈ {b.elo}</span>
+                    </h3>
+                    <p>{b.desc}</p>
+                    {selectedBot.id === b.id && (
+                      <Check className="chosen-check" size={20} />
+                    )}
+                  </button>
+                ))}
               </div>
-              <div>
-                <label htmlFor="time-control">Time control</label>
-                <select
-                  id="time-control"
-                  value={clockPreset}
-                  onChange={(e) => setClockPreset(+e.target.value)}
+              <div className="play-setup">
+                <div className="selected-opponent">
+                  <Avatar item={selectedBot} size={56} />
+                  <div>
+                    <strong>{selectedBot.name}</strong>
+                    <small>
+                      ≈ {selectedBot.elo} · {selectedBot.group}
+                    </small>
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="player-color">Your pieces</label>
+                  <select
+                    id="player-color"
+                    value={playerColor}
+                    onChange={(e) => setPlayerColor(e.target.value)}
+                  >
+                    <option value="w">White</option>
+                    <option value="b">Black</option>
+                    <option value="random">Random</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="time-control">Time control</label>
+                  <select
+                    id="time-control"
+                    value={clockPreset}
+                    onChange={(e) => setClockPreset(+e.target.value)}
+                  >
+                    <option value={0}>Untimed · take your time</option>
+                    <option value={5}>5 minutes</option>
+                    <option value={10}>10 minutes</option>
+                    <option value={15}>15 minutes</option>
+                  </select>
+                </div>
+                <Button
+                  className="primary large"
+                  icon={Swords}
+                  onClick={() => startBot()}
                 >
-                  <option value={0}>Untimed · take your time</option>
-                  <option value={5}>5 minutes</option>
-                  <option value={10}>10 minutes</option>
-                  <option value={15}>15 minutes</option>
-                </select>
+                  Play {selectedBot.name}
+                </Button>
               </div>
-              <Button
-                className="primary large"
-                icon={Swords}
-                onClick={() => startBot()}
-              >
-                Play {selectedBot.name}
-              </Button>
             </div>
             <p className="fine-print">
               Bot ratings are approximate. Games are saved on this device.
@@ -1569,7 +1551,12 @@ function App() {
                   onOpenings={() => go("openings")}
                 />
               ) : (
-                <aside className={"analysis-panel" + (section === "coach" ? " coach-fixed-panel" : "")}>
+                <aside
+                  className={
+                    "analysis-panel" +
+                    (section === "coach" ? " coach-fixed-panel" : "")
+                  }
+                >
                   <div className="panel-tabs">
                     <button
                       className={tab === "analysis" ? "selected-tab" : ""}
