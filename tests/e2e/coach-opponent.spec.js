@@ -44,8 +44,7 @@ test("selected coach is the opponent and survives replies, reload and takeback",
 }) => {
   await expect(page.locator(".player-line").first()).toContainText("Olive");
   await page
-    .locator(".topbar")
-    .getByRole("button", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Settings & about", exact: true })
     .click();
   await page
     .getByRole("combobox", { name: "Coach type" })
