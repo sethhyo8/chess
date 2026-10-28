@@ -4021,6 +4021,24 @@ button .resource-icon {
 }
 
 /* Use identical avatar boxes so names and captured pieces share an edge. */
+.coach-game-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.coach-game-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface, #ffffff08);
+  color: var(--text);
+}
+.coach-game-actions button svg { width: 24px; height: 24px; }
+.coach-game-actions button[aria-pressed="true"] { color: #a6c778; }
+.coach-game-actions button:disabled { opacity: .4; cursor: default; }
 .workspace .player-line > .avatar,
 .workspace .player-line > .you-avatar {
   width: 48px;
