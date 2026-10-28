@@ -29,6 +29,7 @@ export default function Board({
   onMove,
   disabled,
   last,
+  moveBadge,
   arrow,
   editing,
   onEdit,
@@ -129,6 +130,9 @@ export default function Board({
           )}
           {legal.some((m) => m.to === sq) && (
             <span className={"legal-dot " + (p ? "capture" : "")} />
+          )}
+          {last?.to === sq && moveBadge && (
+            <span className="board-move-quality">{moveBadge}</span>
           )}
         </button>,
       );
