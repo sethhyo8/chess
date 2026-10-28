@@ -16,7 +16,7 @@ test("coach plays the opponent, preserves the game, and supports takebacks and r
   await page
     .getByRole("button", { name: "Play With Coach", exact: true })
     .click();
-  await expect(page.locator(".bubble")).toBeVisible();
+  await expect(page.locator(".bubble").last()).toBeVisible();
   await page.locator("[data-square=e2]").click();
   await page.locator("[data-square=e4]").click();
   await expect.poll(() => moves(page), { timeout: 15000 }).toHaveLength(2);
@@ -24,7 +24,7 @@ test("coach plays the opponent, preserves the game, and supports takebacks and r
   await expect(page.locator(".branch-banner")).toHaveCount(0);
   await page.reload();
   await expect(page.locator("h1")).toHaveText("Play With Coach");
-  await expect(page.locator(".bubble")).toBeVisible();
+  await expect(page.locator(".bubble").last()).toBeVisible();
   await expect.poll(() => moves(page)).toHaveLength(2);
   await page
     .getByRole("button", { name: "Practice takeback", exact: true })
