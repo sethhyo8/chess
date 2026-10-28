@@ -14,8 +14,7 @@ test("coach preferences live in Settings and persist after refresh", async ({
     page.getByRole("combobox", { name: "Teaching level" }),
   ).toHaveCount(0);
   await page
-    .locator(".topbar")
-    .getByRole("button", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Settings & about", exact: true })
     .click();
   await page
     .getByRole("combobox", { name: "Teaching level" })
@@ -33,8 +32,7 @@ test("coach preferences live in Settings and persist after refresh", async ({
     .click();
   await expect(page.locator(".bubble")).toHaveCount(0);
   await page
-    .locator(".topbar")
-    .getByRole("button", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Settings & about", exact: true })
     .click();
   await expect(
     page.getByRole("combobox", { name: "Teaching level" }),
