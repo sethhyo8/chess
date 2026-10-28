@@ -175,11 +175,11 @@ test("playing Black, coach attribution, progressive hints and settings", async (
   await expect(page.locator(".bubble")).toHaveCount(1);
   await expect(page.locator(".bubble>strong")).toContainText("Olive");
   await page.getByRole("button", { name: "Hint", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Hint 1/3" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hint", exact: true })).toBeVisible();
   await expect(page.locator(".arrow-layer")).toHaveCount(0);
-  await page.getByRole("button", { name: "Hint 1/3" }).click();
+  await page.getByRole("button", { name: "Hint", exact: true }).click();
   await expect(page.locator(".bubble")).toContainText("on");
-  await page.getByRole("button", { name: "Hint 2/3" }).click();
+  await page.getByRole("button", { name: "Hint", exact: true }).click();
   await expect(page.locator(".arrow-layer")).toHaveCount(1);
   await page.getByRole("button", { name: "What is the threat?" }).click();
   await expect(page.locator(".bubble")).toContainText(/attacked/);

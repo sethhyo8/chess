@@ -74,6 +74,7 @@ export const coaches = [
   {
     id: "fundamentals",
     name: "Olive",
+    engineElo: 600,
     desc: "Build good habits",
     detail: "Development, central squares, and a safe king.",
     color: "#d4af88",
@@ -82,6 +83,7 @@ export const coaches = [
   {
     id: "tactics",
     name: "Theo",
+    engineElo: 1200,
     desc: "See the possibilities",
     detail: "Forcing moves, checks, captures, and legal replies.",
     color: "#9aacc9",
@@ -90,6 +92,7 @@ export const coaches = [
   {
     id: "planning",
     name: "Iris",
+    engineElo: 1600,
     desc: "Find a thoughtful plan",
     detail: "Piece activity, central control, and candidate moves.",
     color: "#b99bc4",
