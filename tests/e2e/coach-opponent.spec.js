@@ -44,9 +44,13 @@ test("selected coach is the opponent and survives replies, reload and takeback",
 }) => {
   await expect(page.locator(".player-line").first()).toContainText("Olive");
   await page
-    .locator(".coach-picker button")
-    .filter({ hasText: "Theo" })
+    .locator(".topbar")
+    .getByRole("button", { name: "Settings", exact: true })
     .click();
+  await page
+    .getByRole("combobox", { name: "Coach type" })
+    .selectOption("tactics");
+  await page.getByRole("button", { name: "Back to the board" }).click();
   await expect(page.locator(".player-line").first()).toContainText("Theo");
   const reply = page.waitForRequest("**/api/bot");
   await page.locator("[data-square=e2]").click();
@@ -140,4 +144,96 @@ test("switching to Bots keeps bot identities and Review keeps replay controls", 
   await expect(
     page.getByRole("combobox", { name: "Replay speed" }),
   ).toBeVisible();
+});
+
+test("comments and quality icons follow both moves, persist on reload and clear on takeback", async ({
+  page,
+}) => {
+  await expect(page.getByText("Meet your coach.", { exact: true })).toHaveCount(
+    0,
+  );
+  await page.route("**/api/analyse", (route) => {
+    const { moves = [] } = route.request().postDataJSON();
+    return route.fulfill({
+      json: { cp: moves.length % 2 ? -50 : 0, lines: [], depth: 9 },
+    });
+  });
+  await page.route("**/api/bot", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    return route.fulfill({ json: { move: "e5" } });
+  });
+  await page.locator("[data-square=e2]").click();
+  await page.locator("[data-square=e4]").click();
+  await expect(
+    page.locator("[data-square=e4] .board-move-quality img"),
+  ).toHaveAttribute("alt", "Good");
+  await expect(page.getByLabel("Coach conversation")).toContainText("centre");
+  await expect(
+    page.locator("[data-square=e5] .board-move-quality img"),
+  ).toHaveAttribute("alt", "Good");
+  await expect(
+    page
+      .getByLabel("Coach moves")
+      .getByRole("img", { name: "Good", exact: true }),
+  ).toHaveCount(2);
+  await expect(page.getByLabel("Coach conversation")).toContainText(
+    "I'm putting",
+  );
+  await expect(page.getByLabel("Coach conversation")).not.toContainText(
+    /inaccuracy|depth 9|centipawn/,
+  );
+  await page.reload();
+  await expect(
+    page
+      .getByLabel("Coach moves")
+      .getByRole("img", { name: "Good", exact: true }),
+  ).toHaveCount(2);
+  await page.getByRole("button", { name: "Flip board", exact: true }).click();
+  await expect(
+    page.locator("[data-square=e5] .board-move-quality img"),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Practice takeback", exact: true })
+    .click();
+  await expect(page.locator(".board-move-quality")).toHaveCount(0);
+  await expect(page.getByLabel("Coach moves").getByRole("button")).toHaveCount(
+    0,
+  );
+});
+
+test("late assessments cannot add comments to a restarted Coach game", async ({
+  page,
+}) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route("**/api/analyse", async (route) => {
+    if (route.request().postDataJSON().moves?.length) {
+      requested = true;
+      await gate;
+    }
+    await route
+      .fulfill({ json: { cp: 0, lines: [], depth: 9 } })
+      .catch(() => {});
+  });
+  await page.locator("[data-square=e2]").click();
+  await page.locator("[data-square=e4]").click();
+  await expect.poll(() => requested).toBe(true);
+  await page.getByRole("button", { name: "New game", exact: true }).click();
+  release();
+  await expect(page.getByLabel("Coach conversation")).toContainText(
+    "Let's play a game",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Object.keys(
+            JSON.parse(localStorage.getItem("grove-current")).coachNotes || {},
+          ).length,
+      ),
+    )
+    .toBe(0);
 });

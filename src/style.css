@@ -4056,3 +4056,36 @@ button .resource-icon {
     border-radius: 9px;
   }
 }
+
+.board-move-quality {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 4;
+  pointer-events: none;
+}
+.board-move-quality .quality-badge {
+  display: block;
+  width: clamp(18px, 2.3vw, 30px);
+  height: clamp(18px, 2.3vw, 30px);
+  filter: drop-shadow(0 1px 2px #0008);
+}
+.coach-move-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: 220px;
+  overflow: auto;
+  gap: 3px;
+  padding: 12px 20px;
+}
+.coach-move-list:empty { display: none; }
+.coach-move-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  min-height: 36px;
+}
+.coach-move-list button[aria-current="step"] { background: #a6c77822; }
+.coach-live { margin: 0 20px 12px; }
+.coach-conversation { padding-top: 16px; }
