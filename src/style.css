@@ -4089,3 +4089,28 @@ button .resource-icon {
 .coach-move-list button[aria-current="step"] { background: #a6c77822; }
 .coach-live { margin: 0 20px 12px; }
 .coach-conversation { padding-top: 16px; }
+
+/* Reserve each captured image's full width, including the final piece. */
+.captured-tray {
+  height: auto;
+  min-height: 20px;
+  flex-wrap: wrap;
+  gap: 4px 2px;
+}
+.captured-tray > span { margin-right: 0; }
+.captured-tray > strong {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.bubble { border-radius: 12px; }
+.bubble:before {
+  left: -4px;
+  top: 16px;
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 3px;
+  transform: rotate(45deg);
+  background: inherit;
+}
