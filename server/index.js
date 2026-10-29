@@ -11,6 +11,7 @@ app.use((req, res, next) => {
   next();
 });
 app.get("/api/health", (_, res) => res.json(engineInfo));
+app.get("/api/ready", (_, res) => res.status(engineInfo.ready ? 200 : 503).json(engineInfo));
 function route(path, fn) {
   app.post(path, async (req, res) => {
     const abort = new AbortController();

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: chessgrove
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: false
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/ready
+    envVars:
+      - key: NODE_VERSION
+        value: 24.19.0
+      - key: NODE_ENV
+        value: production
